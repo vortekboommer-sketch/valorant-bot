@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
-DISCORD_TOKEN = "MTQ3NjY4Njg1ODQ1NjEzNzcyOA.GIRnAs.pPR4-9MKlGFyQeQdc-hCLvl8tCvxmzscjuzfI0"
+DISCORD_TOKEN = "MTQ3NjY4Njg1ODQ1NjEzNzcyOA.GB7Tvi.YbM4XdAXvHZbSvkWeLtzjA8xXG2f_xGEtvO7VQ"
 CHANNEL_ID = 1310677185169850452
 RIOT_NAME = "zawn"
 RIOT_TAG = "7627"
