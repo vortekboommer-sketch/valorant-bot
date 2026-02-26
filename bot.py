@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
-DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
+DISCORD_TOKEN = "MTQ3NjY4Njg1ODQ1NjEzNzcyOA.GIRnAs.pPR4-9MKlGFyQeQdc-hCLvl8tCvxmzscjuzfI0"
 CHANNEL_ID = 1310677185169850452
 RIOT_NAME = "zawn"
 RIOT_TAG = "7627"
