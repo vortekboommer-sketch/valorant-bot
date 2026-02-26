@@ -9,7 +9,7 @@ DISCORD_TOKEN = "MTQ3NjY4Njg1ODQ1NjEzNzcyOA.GB7Tvi.YbM4XdAXvHZbSvkWeLtzjA8xXG2f_
 CHANNEL_ID = 1310677185169850452
 RIOT_NAME = "zawn"
 RIOT_TAG = "7627"
-CHECK_INTERVAL = 60  # secondes entre chaque vérification
+CHECK_INTERVAL = 61  # secondes entre chaque vérification
 
 # Tiers Valorant (0-based index selon l'API Henrik)
 # Ascendant 1 = tier 24
