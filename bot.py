@@ -5,11 +5,14 @@ import os
 from datetime import datetime
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
-DISCORD_TOKEN =  os.environ["DISCORD_TOKEN"]
+DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 CHANNEL_ID = 1310677185169850452
-RIOT_NAME = "zawn"
-RIOT_TAG = "7627"
 CHECK_INTERVAL = 61  # secondes entre chaque vérification
+
+PLAYERS = [
+    {"name": "zawn", "tag": "7627"},
+    {"name": "miichaaa", "tag": "CACA"},
+]
 
 # Tiers Valorant (0-based index selon l'API Henrik)
 # Ascendant 1 = tier 24
@@ -38,10 +41,6 @@ RANK_EMOJIS = {
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 
-last_match_id = None
-last_mmr_data = None
-
-
 def get_rank_emoji(tier_name: str) -> str:
     for rank, emoji in RANK_EMOJIS.items():
         if rank in tier_name:
@@ -57,8 +56,8 @@ def calculate_rr_to_ascendant(current_tier: int, rr_in_tier: int) -> int | None:
     return (tiers_restants * 100) - rr_in_tier
 
 
-async def fetch_mmr(session: aiohttp.ClientSession) -> dict | None:
-    url = f"https://api.henrikdev.xyz/valorant/v3/mmr/eu/pc/{RIOT_NAME}/{RIOT_TAG}"
+async def fetch_mmr(session: aiohttp.ClientSession, name: str, tag: str) -> dict | None:
+    url = f"https://api.henrikdev.xyz/valorant/v3/mmr/eu/pc/{name}/{tag}"
     async with session.get(url) as resp:
         if resp.status != 200:
             return None
@@ -66,8 +65,8 @@ async def fetch_mmr(session: aiohttp.ClientSession) -> dict | None:
         return data.get("data")
 
 
-async def fetch_last_match_id(session: aiohttp.ClientSession) -> str | None:
-    url = f"https://api.henrikdev.xyz/valorant/v1/mmr-history/eu/pc/{RIOT_NAME}/{RIOT_TAG}"
+async def fetch_last_match_id(session: aiohttp.ClientSession, name: str, tag: str) -> str | None:
+    url = f"https://api.henrikdev.xyz/valorant/v1/mmr-history/eu/pc/{name}/{tag}"
     async with session.get(url) as resp:
         if resp.status != 200:
             return None
@@ -78,20 +77,19 @@ async def fetch_last_match_id(session: aiohttp.ClientSession) -> str | None:
         return None
 
 
-def build_embed(mmr_data: dict, rr_change: int | None) -> discord.Embed:
+def build_embed(mmr_data: dict, rr_change: int | None, name: str, tag: str) -> discord.Embed:
     current_tier = mmr_data.get("current", {}).get("tier", {}).get("id", 0)
     rr_in_tier = mmr_data.get("current", {}).get("rr", 0)
     tier_name = mmr_data.get("current", {}).get("tier", {}).get("name", "Unranked")
-    peak = mmr_data.get("peak", {})
 
     rr_to_asc = calculate_rr_to_ascendant(current_tier, rr_in_tier)
     emoji = get_rank_emoji(tier_name)
 
     if rr_to_asc is None:
-        title = f"{emoji} {RIOT_NAME}#{RIOT_TAG} — Ascendant+ atteint !"
+        title = f"{emoji} {name}#{tag} — Ascendant+ atteint !"
         color = discord.Color.green()
     else:
-        title = f"{emoji} {RIOT_NAME}#{RIOT_TAG} — Mise à jour du rang"
+        title = f"{emoji} {name}#{tag} — Mise à jour du rang"
         color = discord.Color.blurple()
 
     embed = discord.Embed(title=title, color=color, timestamp=datetime.utcnow())
@@ -103,12 +101,10 @@ def build_embed(mmr_data: dict, rr_change: int | None) -> discord.Embed:
         embed.add_field(name="📊 Dernière partie", value=f"{result} ({sign}{rr_change} RR)", inline=True)
 
     if rr_to_asc is not None:
-        # Barre de progression
         total_rr_needed = (ASCENDANT_1_TIER - current_tier) * 100
         progress_pct = max(0, min(100, int((1 - rr_to_asc / total_rr_needed) * 100)))
         filled = progress_pct // 10
         bar = "🟩" * filled + "⬛" * (10 - filled)
-
         embed.add_field(
             name="🏆 Avant Ascendant",
             value=f"**{rr_to_asc} RR restants**\n{bar} {progress_pct}%",
@@ -117,57 +113,52 @@ def build_embed(mmr_data: dict, rr_change: int | None) -> discord.Embed:
     else:
         embed.add_field(name="🏆 Statut", value="Tu es déjà **Ascendant ou plus** ! GG 🎉", inline=False)
 
-    embed.set_footer(text=f"Valorant Tracker • {RIOT_NAME}#{RIOT_TAG}")
+    embed.set_footer(text=f"Valorant Tracker • {name}#{tag}")
     return embed
 
 
-async def monitor_loop():
-    global last_match_id, last_mmr_data
+async def monitor_player(session: aiohttp.ClientSession, player: dict, channel: discord.TextChannel):
+    name = player["name"]
+    tag = player["tag"]
+    last_match_id = await fetch_last_match_id(session, name, tag)
+    last_mmr_data = await fetch_mmr(session, name, tag)
+    print(f"📌 {name}#{tag} — Dernier match : {last_match_id}")
 
+    while not client.is_closed():
+        await asyncio.sleep(CHECK_INTERVAL)
+        try:
+            new_match_id = await fetch_last_match_id(session, name, tag)
+            if new_match_id and new_match_id != last_match_id:
+                print(f"🎮 Nouvelle partie détectée pour {name}#{tag} : {new_match_id}")
+                last_match_id = new_match_id
+                new_mmr = await fetch_mmr(session, name, tag)
+                if new_mmr is None:
+                    continue
+                rr_change = None
+                if last_mmr_data:
+                    old_rr = last_mmr_data.get("current", {}).get("rr", 0)
+                    old_tier = last_mmr_data.get("current", {}).get("tier", {}).get("id", 0)
+                    new_rr = new_mmr.get("current", {}).get("rr", 0)
+                    new_tier = new_mmr.get("current", {}).get("tier", {}).get("id", 0)
+                    tier_diff = (new_tier - old_tier) * 100
+                    rr_change = (new_rr - old_rr) + tier_diff
+                last_mmr_data = new_mmr
+                embed = build_embed(new_mmr, rr_change, name, tag)
+                await channel.send(embed=embed)
+        except Exception as e:
+            print(f"⚠️ Erreur pour {name}#{tag} : {e}")
+
+
+async def monitor_loop():
     await client.wait_until_ready()
     channel = client.get_channel(CHANNEL_ID)
-
     if channel is None:
         print(f"❌ Salon introuvable (ID: {CHANNEL_ID})")
         return
-
-    print(f"✅ Bot démarré — surveillance de {RIOT_NAME}#{RIOT_TAG}")
-
+    print(f"✅ Bot démarré — surveillance de {len(PLAYERS)} joueurs")
     async with aiohttp.ClientSession() as session:
-        # Init : récupère le dernier match connu sans envoyer de message
-        last_match_id = await fetch_last_match_id(session)
-        last_mmr_data = await fetch_mmr(session)
-        print(f"📌 Dernier match connu : {last_match_id}")
-
-        while not client.is_closed():
-            await asyncio.sleep(CHECK_INTERVAL)
-            try:
-                new_match_id = await fetch_last_match_id(session)
-
-                if new_match_id and new_match_id != last_match_id:
-                    print(f"🎮 Nouvelle partie détectée : {new_match_id}")
-                    last_match_id = new_match_id
-
-                    new_mmr = await fetch_mmr(session)
-                    if new_mmr is None:
-                        continue
-
-                    # Calcul du changement de RR
-                    rr_change = None
-                    if last_mmr_data:
-                        old_rr = last_mmr_data.get("current", {}).get("rr", 0)
-                        old_tier = last_mmr_data.get("current", {}).get("tier", {}).get("id", 0)
-                        new_rr = new_mmr.get("current", {}).get("rr", 0)
-                        new_tier = new_mmr.get("current", {}).get("tier", {}).get("id", 0)
-                        tier_diff = (new_tier - old_tier) * 100
-                        rr_change = (new_rr - old_rr) + tier_diff
-
-                    last_mmr_data = new_mmr
-                    embed = build_embed(new_mmr, rr_change)
-                    await channel.send(embed=embed)
-
-            except Exception as e:
-                print(f"⚠️ Erreur dans la boucle : {e}")
+        tasks = [monitor_player(session, player, channel) for player in PLAYERS]
+        await asyncio.gather(*tasks)
 
 
 @client.event
