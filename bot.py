@@ -52,8 +52,22 @@ async def fetch_mmr(session: aiohttp.ClientSession, name: str, tag: str) -> dict
         return data.get("data")
 
 
+async def fetch_puuid(session: aiohttp.ClientSession, name: str, tag: str) -> str | None:
+    url = f"https://api.henrikdev.xyz/valorant/v1/account/{name}/{tag}"
+    headers = {"Authorization": HENRIK_API_KEY}
+    async with session.get(url, headers=headers) as resp:
+        if resp.status != 200:
+            print(f"⚠️ fetch_puuid {name}#{tag} → status {resp.status}")
+            return None
+        data = await resp.json()
+        return data.get("data", {}).get("puuid")
+
+
 async def fetch_last_match_id(session: aiohttp.ClientSession, name: str, tag: str) -> str | None:
-    url = f"https://api.henrikdev.xyz/valorant/v2/mmr-history/eu/pc/{name}/{tag}"
+    puuid = await fetch_puuid(session, name, tag)
+    if not puuid:
+        return None
+    url = f"https://api.henrikdev.xyz/valorant/v2/by-puuid/mmr-history/eu/{puuid}"
     headers = {"Authorization": HENRIK_API_KEY}
     async with session.get(url, headers=headers) as resp:
         if resp.status != 200:
@@ -62,9 +76,8 @@ async def fetch_last_match_id(session: aiohttp.ClientSession, name: str, tag: st
         data = await resp.json()
         matches = data.get("data", [])
         if matches:
-           first = matches[0]
-return first.get("match_id") or first.get("id")
-print(f"⚠️ URL testée : {url}")
+            first = matches[0]
+            return first.get("match_id") or first.get("id")
         return None
 
 
