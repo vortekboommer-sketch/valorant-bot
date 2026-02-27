@@ -62,7 +62,8 @@ async def fetch_last_match_id(session: aiohttp.ClientSession, name: str, tag: st
         data = await resp.json()
         matches = data.get("data", [])
         if matches:
-            return matches[0].get("match_id")
+           first = matches[0]
+return first.get("match_id") or first.get("id")
         return None
 
 
