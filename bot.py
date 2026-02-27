@@ -6,6 +6,7 @@ from datetime import datetime
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
+HENRIK_API_KEY = os.environ["HENRIK_API_KEY"]
 CHANNEL_ID = 1310677185169850452
 CHECK_INTERVAL = 61  # secondes entre chaque vérification
 
@@ -14,22 +15,7 @@ PLAYERS = [
     {"name": "miichaaa", "tag": "CACA"},
 ]
 
-# Tiers Valorant (0-based index selon l'API Henrik)
-# Ascendant 1 = tier 24
 ASCENDANT_1_TIER = 24
-
-TIER_NAMES = {
-    0: "Unranked",
-    3: "Iron 1", 4: "Iron 2", 5: "Iron 3",
-    6: "Bronze 1", 7: "Bronze 2", 8: "Bronze 3",
-    9: "Silver 1", 10: "Silver 2", 11: "Silver 3",
-    12: "Gold 1", 13: "Gold 2", 14: "Gold 3",
-    15: "Platinum 1", 16: "Platinum 2", 17: "Platinum 3",
-    18: "Diamond 1", 19: "Diamond 2", 20: "Diamond 3",
-    21: "Ascendant 1", 22: "Ascendant 2", 23: "Ascendant 3",
-    24: "Immortal 1", 25: "Immortal 2", 26: "Immortal 3",
-    27: "Radiant"
-}
 
 RANK_EMOJIS = {
     "Iron": "🩶", "Bronze": "🟤", "Silver": "⚪",
@@ -37,9 +23,9 @@ RANK_EMOJIS = {
     "Ascendant": "🟢", "Immortal": "🔴", "Radiant": "✨", "Unranked": "⬛"
 }
 
-# ─── BOT ──────────────────────────────────────────────────────────────────────
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
+
 
 def get_rank_emoji(tier_name: str) -> str:
     for rank, emoji in RANK_EMOJIS.items():
@@ -49,17 +35,18 @@ def get_rank_emoji(tier_name: str) -> str:
 
 
 def calculate_rr_to_ascendant(current_tier: int, rr_in_tier: int) -> int | None:
-    """Calcule les RR restants avant Ascendant 1. Retourne None si déjà Ascendant+."""
     if current_tier >= ASCENDANT_1_TIER:
-        return None  # Déjà Ascendant ou plus
+        return None
     tiers_restants = ASCENDANT_1_TIER - current_tier
     return (tiers_restants * 100) - rr_in_tier
 
 
 async def fetch_mmr(session: aiohttp.ClientSession, name: str, tag: str) -> dict | None:
     url = f"https://api.henrikdev.xyz/valorant/v3/mmr/eu/pc/{name}/{tag}"
-    async with session.get(url) as resp:
+    headers = {"Authorization": HENRIK_API_KEY}
+    async with session.get(url, headers=headers) as resp:
         if resp.status != 200:
+            print(f"⚠️ fetch_mmr {name}#{tag} → status {resp.status}")
             return None
         data = await resp.json()
         return data.get("data")
@@ -67,8 +54,10 @@ async def fetch_mmr(session: aiohttp.ClientSession, name: str, tag: str) -> dict
 
 async def fetch_last_match_id(session: aiohttp.ClientSession, name: str, tag: str) -> str | None:
     url = f"https://api.henrikdev.xyz/valorant/v1/mmr-history/eu/pc/{name}/{tag}"
-    async with session.get(url) as resp:
+    headers = {"Authorization": HENRIK_API_KEY}
+    async with session.get(url, headers=headers) as resp:
         if resp.status != 200:
+            print(f"⚠️ fetch_last_match_id {name}#{tag} → status {resp.status}")
             return None
         data = await resp.json()
         matches = data.get("data", [])
