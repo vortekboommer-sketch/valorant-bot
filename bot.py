@@ -64,6 +64,7 @@ async def fetch_last_match_id(session: aiohttp.ClientSession, name: str, tag: st
         if matches:
            first = matches[0]
 return first.get("match_id") or first.get("id")
+print(f"⚠️ URL testée : {url}")
         return None
 
 
