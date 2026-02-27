@@ -53,7 +53,7 @@ async def fetch_mmr(session: aiohttp.ClientSession, name: str, tag: str) -> dict
 
 
 async def fetch_last_match_id(session: aiohttp.ClientSession, name: str, tag: str) -> str | None:
-    url = f"https://api.henrikdev.xyz/valorant/v3/mmr-history/eu/pc/{name}/{tag}"
+    url = f"https://api.henrikdev.xyz/valorant/v2/mmr-history/eu/pc/{name}/{tag}"
     headers = {"Authorization": HENRIK_API_KEY}
     async with session.get(url, headers=headers) as resp:
         if resp.status != 200:
