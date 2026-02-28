@@ -8,7 +8,7 @@ from datetime import datetime
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 HENRIK_API_KEY = os.environ["HENRIK_API_KEY"]
 CHANNEL_ID = 1310677185169850452
-CHECK_INTERVAL = 120  # secondes entre chaque vérification
+CHECK_INTERVAL = 60  # secondes entre chaque vérification
 
 PLAYERS = [
     {"name": "zawn", "tag": "7627"},
