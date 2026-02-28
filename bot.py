@@ -55,6 +55,7 @@ async def fetch_puuid(session: aiohttp.ClientSession, name: str, tag: str) -> st
 async def fetch_last_match_id(session: aiohttp.ClientSession, name: str, tag: str, puuid: str) -> str | None:
     url = f"https://api.henrikdev.xyz/valorant/v2/by-puuid/mmr-history/eu/pc/{puuid}"
     headers = {"Authorization": HENRIK_API_KEY}
+    print(f"🔍 URL : {url}")
     async with session.get(url, headers=headers) as resp:
         if resp.status != 200:
             print(f"⚠️ fetch_last_match_id {name}#{tag} → status {resp.status}")
