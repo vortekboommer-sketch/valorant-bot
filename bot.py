@@ -15,7 +15,7 @@ PLAYERS = [
     {"name": "miichaaa", "tag": "CACA"},
 ]
 
-ASCENDANT_1_TIER = 24
+ASCENDANT_1_TIER = 21
 
 RANK_EMOJIS = {
     "Iron": "🩶", "Bronze": "🟤", "Silver": "⚪",
