@@ -149,9 +149,9 @@ async def monitor_player(session: aiohttp.ClientSession, player: dict, channel: 
                 rr_change = new_match_data.get("last_change")
                 last_match_data = new_match_data
                 embed = build_embed(new_match_data, rr_change, name, tag)
-               msg = await channel.send(embed=embed)
-await asyncio.sleep(180)  # 300 secondes = 5 minutes
-await msg.delete()
+                msg = await channel.send(embed=embed)
+                await asyncio.sleep(300)
+                await msg.delete()
         except Exception as e:
             print(f"⚠️ Erreur pour {name}#{tag} : {e}")
 
