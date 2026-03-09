@@ -12,7 +12,7 @@ DELETE_AFTER = 180  # secondes avant suppression du message
 
 PLAYERS = [
     {"name": "pardon", "tag": "7627"},
-    {"name": "miichaaa", "tag": "CACA"},
+    {"name": "talvez", "tag": "0610"},
 ]
 
 ASCENDANT_1_TIER = 21
