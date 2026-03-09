@@ -10,7 +10,7 @@ CHANNEL_ID = 1310677185169850452
 CHECK_INTERVAL = 60
 
 PLAYERS = [
-    {"name": "zawn", "tag": "7627"},
+    {"name": "pardon", "tag": "7627"},
     {"name": "miichaaa", "tag": "CACA"},
 ]
 
