@@ -143,8 +143,9 @@ def build_embed(match_data: dict, name: str, tag: str, history: list) -> discord
         )
 
         # Stats du jour
-        if stats["wins_today"] + stats["losses_today"] > 0:
-        rr_sign_today = "+" if stats["rr_net_today"] > 0 else ""
+       total_today = stats["wins_today"] + stats["losses_today"]
+        if total_today > 0:
+            rr_sign_today = "+" if stats["rr_net_today"] > 0 else ""
             embed.add_field(
                 name="📅 Aujourd'hui",
                 value=f"✅ {stats['wins_today']}V — ❌ {stats['losses_today']}D — **{stats['wr_today']}% WR**\nRR net : {rr_sign_today}{stats['rr_net_today']}",
