@@ -11,7 +11,7 @@ CHECK_INTERVAL = 60
 DELETE_AFTER = 180  # secondes avant suppression du message
 
 PLAYERS = [
-    {"name": "zawn", "tag": "7627"},
+    {"name": "pardon", "tag": "7627"},
     {"name": "miichaaa", "tag": "CACA"},
 ]
 
