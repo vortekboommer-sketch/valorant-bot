@@ -8,9 +8,10 @@ DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 HENRIK_API_KEY = os.environ["HENRIK_API_KEY"]
 CHANNEL_ID = 1310677185169850452
 CHECK_INTERVAL = 60
+DELETE_AFTER = 180  # secondes avant suppression du message
 
 PLAYERS = [
-    {"name": "pardon", "tag": "7627"},
+    {"name": "zawn", "tag": "7627"},
     {"name": "miichaaa", "tag": "CACA"},
 ]
 
@@ -150,6 +151,14 @@ def build_embed(match_data, name, tag, history):
     return embed
 
 
+async def delete_after(msg, delay):
+    await asyncio.sleep(delay)
+    try:
+        await msg.delete()
+    except Exception as e:
+        print(f"⚠️ Erreur suppression : {e}")
+
+
 async def monitor_player(session, player, channel):
     name = player["name"]
     tag = player["tag"]
@@ -174,12 +183,10 @@ async def monitor_player(session, player, channel):
                 print(f"🎮 Nouvelle partie pour {name}#{tag} !")
                 last_match_id = new_match_id
                 embed = build_embed(new_history[0], name, tag, new_history)
-            msg = await channel.send(embed=embed)
-try:
-    await asyncio.sleep(180)
-    await msg.delete()
-except Exception as e:
-    print(f"⚠️ Erreur suppression message : {e}")
+                msg = await channel.send(embed=embed)
+                asyncio.ensure_future(delete_after(msg, DELETE_AFTER))
+        except Exception as e:
+            print(f"⚠️ Erreur {name}#{tag} : {e}")
 
 
 async def monitor_loop():
