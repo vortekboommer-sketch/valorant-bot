@@ -175,7 +175,7 @@ async def monitor_player(session, player, channel):
                 last_match_id = new_match_id
                 embed = build_embed(new_history[0], name, tag, new_history)
                 msg = await channel.send(embed=embed)
-                await asyncio.sleep(300)
+                await asyncio.sleep(180)
                 await msg.delete()
         except Exception as e:
             print(f"⚠️ Erreur {name}#{tag} : {e}")
