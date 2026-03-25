@@ -11,11 +11,13 @@ CHECK_INTERVAL = 60
 DELETE_AFTER = 180  # secondes avant suppression du message
 
 PLAYERS = [
-    {"name": "pardon", "tag": "7627"},
-    {"name": "talvez", "tag": "0610"},
+    {"name": "pardon",   "tag": "7627", "goal": "ascendant"},
+    {"name": "talvez",   "tag": "0610", "goal": "ascendant"},
+    {"name": "Horuuuss", "tag": "EUWW", "goal": "diamond"},
 ]
 
 ASCENDANT_1_TIER = 21
+DIAMOND_1_TIER   = 18  # Diamond 1
 
 RANK_EMOJIS = {
     "Iron": "🩶", "Bronze": "🟤", "Silver": "⚪",
@@ -26,6 +28,9 @@ RANK_EMOJIS = {
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 
+# Flag pour éviter le double lancement de monitor_loop
+_monitor_started = False
+
 
 def get_rank_emoji(tier_name):
     for rank, emoji in RANK_EMOJIS.items():
@@ -34,10 +39,19 @@ def get_rank_emoji(tier_name):
     return "🎮"
 
 
-def calculate_rr_to_ascendant(current_tier, rr_in_tier):
-    if current_tier >= ASCENDANT_1_TIER:
-        return None
-    return (ASCENDANT_1_TIER - current_tier) * 100 - rr_in_tier
+def calculate_rr_to_goal(current_tier, rr_in_tier, goal):
+    """Retourne (rr_restants, goal_tier, goal_label) selon l'objectif du joueur."""
+    if goal == "diamond":
+        target_tier  = DIAMOND_1_TIER
+        target_label = "Diamond"
+    else:
+        target_tier  = ASCENDANT_1_TIER
+        target_label = "Ascendant"
+
+    if current_tier >= target_tier:
+        return None, target_tier, target_label
+
+    return (target_tier - current_tier) * 100 - rr_in_tier, target_tier, target_label
 
 
 def get_stats(history):
@@ -100,7 +114,7 @@ async def fetch_history(session, name, tag, puuid):
         return data.get("data", {}).get("history", [])
 
 
-def build_embed(match_data, name, tag, history):
+def build_embed(match_data, name, tag, history, goal="ascendant"):
     tier = match_data.get("tier", {})
     current_tier = tier.get("id", 0)
     tier_name = tier.get("name", "Unranked")
@@ -108,24 +122,24 @@ def build_embed(match_data, name, tag, history):
     rr_change = match_data.get("last_change", 0)
     map_name = match_data.get("map", {}).get("name", "?")
 
-    rr_to_asc = calculate_rr_to_ascendant(current_tier, rr_in_tier)
+    rr_to_goal, target_tier, target_label = calculate_rr_to_goal(current_tier, rr_in_tier, goal)
     emoji = get_rank_emoji(tier_name)
     sign = "+" if rr_change > 0 else ""
     result = "✅ Victoire" if rr_change > 0 else "❌ Défaite" if rr_change < 0 else "🤝 Égalité"
     color = discord.Color.green() if rr_change > 0 else discord.Color.red() if rr_change < 0 else discord.Color.greyple()
-    title = f"{emoji} {name}#{tag} — {'Ascendant+ atteint !' if rr_to_asc is None else 'Mise à jour du rang'}"
+    title = f"{emoji} {name}#{tag} — {f'{target_label}+ atteint !' if rr_to_goal is None else 'Mise à jour du rang'}"
 
     embed = discord.Embed(title=title, color=color, timestamp=datetime.utcnow())
     embed.add_field(name="🎯 Rang actuel", value=f"**{tier_name}** — {rr_in_tier} RR", inline=True)
     embed.add_field(name="📊 Dernière partie", value=f"{result} ({sign}{rr_change} RR)\n🗺️ {map_name}", inline=True)
 
-    if rr_to_asc is not None:
-        total = (ASCENDANT_1_TIER - current_tier) * 100
-        pct = max(0, min(100, int((1 - rr_to_asc / total) * 100)))
+    if rr_to_goal is not None:
+        total = (target_tier - current_tier) * 100
+        pct = max(0, min(100, int((1 - rr_to_goal / total) * 100)))
         bar = "🟩" * (pct // 10) + "⬛" * (10 - pct // 10)
-        embed.add_field(name="🏆 Avant Ascendant", value=f"**{rr_to_asc} RR restants**\n{bar} {pct}%", inline=False)
+        embed.add_field(name=f"🏆 Avant {target_label}", value=f"**{rr_to_goal} RR restants**\n{bar} {pct}%", inline=False)
     else:
-        embed.add_field(name="🏆 Statut", value="Tu es déjà **Ascendant ou plus** ! GG 🎉", inline=False)
+        embed.add_field(name="🏆 Statut", value=f"Tu es déjà **{target_label} ou plus** ! GG 🎉", inline=False)
 
     if history:
         stats = get_stats(history)
@@ -161,7 +175,8 @@ async def delete_after(msg, delay):
 
 async def monitor_player(session, player, channel):
     name = player["name"]
-    tag = player["tag"]
+    tag  = player["tag"]
+    goal = player.get("goal", "ascendant")
 
     puuid = await fetch_puuid(session, name, tag)
     if not puuid:
@@ -182,7 +197,7 @@ async def monitor_player(session, player, channel):
             if new_match_id and new_match_id != last_match_id:
                 print(f"🎮 Nouvelle partie pour {name}#{tag} !")
                 last_match_id = new_match_id
-                embed = build_embed(new_history[0], name, tag, new_history)
+                embed = build_embed(new_history[0], name, tag, new_history, goal)
                 msg = await channel.send(embed=embed)
                 asyncio.ensure_future(delete_after(msg, DELETE_AFTER))
         except Exception as e:
@@ -203,8 +218,12 @@ async def monitor_loop():
 
 @client.event
 async def on_ready():
+    global _monitor_started
     print(f"🤖 Connecté en tant que {client.user}")
-    client.loop.create_task(monitor_loop())
+    # Empêche le double lancement si on_ready est appelé plusieurs fois
+    if not _monitor_started:
+        _monitor_started = True
+        client.loop.create_task(monitor_loop())
 
 
 client.run(DISCORD_TOKEN)
